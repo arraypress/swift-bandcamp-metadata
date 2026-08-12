@@ -64,7 +64,7 @@ enum BandcampParser {
             hasLyrics: boolValue(d["has_lyrics"]),
             lyrics: nonEmpty(d["lyrics"]),
             playCount: intValue(d["play_count"]),
-            url: titleLink.map { "https://\(host)\($0)" }
+            url: absolute(titleLink, host: host)
         )
     }
 
@@ -107,10 +107,26 @@ enum BandcampParser {
             id: intValue(d["id"]) ?? 0,
             title: d["title"] as? String ?? "",
             artist: nonEmpty(d["artist"]),
-            url: pageURL.isEmpty ? "https://\(host)" : "https://\(host)\(pageURL)",
+            url: absolute(pageURL, host: host) ?? "https://\(host)",
             artworkID: intValue(d["art_id"]),
             type: d["type"] as? String ?? "album"
         )
+    }
+
+    /// A link from a page, made absolute without being made wrong.
+    ///
+    /// Most of these are paths and want the host in front. Some already carry
+    /// their own: a label's discography lists records that live on the
+    /// artist's own subdomain, and those arrive absolute. Prefixing those
+    /// produced `https://label.bandcamp.comhttps://artist.bandcamp.com/album/x`
+    /// — a URL that is obviously broken to a reader and silently broken to
+    /// anything that follows it.
+    static func absolute(_ link: String?, host: String) -> String? {
+        guard let link, !link.isEmpty else { return nil }
+        if link.hasPrefix("http://") || link.hasPrefix("https://") { return link }
+        if link.hasPrefix("//") { return "https:\(link)" }
+        if link.hasPrefix("/") { return "https://\(host)\(link)" }
+        return "https://\(host)/\(link)"
     }
 
     // MARK: - Search

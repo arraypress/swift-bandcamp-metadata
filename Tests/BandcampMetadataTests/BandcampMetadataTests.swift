@@ -168,6 +168,42 @@ final class BandcampMetadataTests: XCTestCase {
             try BandcampClient.checkInterstitial("<title>Client Challenge EP | Some Band</title>")
         )
     }
+
+    // MARK: - Link building
+
+    /// A label's discography lists records that live on the artist's own
+    /// subdomain, and those arrive already absolute. Prefixing the label host
+    /// produced
+    /// `https://warprecords.bandcamp.comhttps://dannybrown.bandcamp.com/...`
+    /// — visibly broken to a reader, silently broken to anything following it.
+    func testAnAbsoluteLinkIsNotPrefixedWithTheHost() {
+        let absolute = "https://dannybrown.bandcamp.com/album/stardust-1?label=665116796"
+        XCTAssertEqual(
+            BandcampParser.absolute(absolute, host: "warprecords.bandcamp.com"),
+            absolute
+        )
+    }
+
+    func testARelativeLinkStillGetsItsHost() {
+        XCTAssertEqual(
+            BandcampParser.absolute("/album/bag-of-max", host: "warprecords.bandcamp.com"),
+            "https://warprecords.bandcamp.com/album/bag-of-max"
+        )
+        XCTAssertEqual(
+            BandcampParser.absolute("album/no-leading-slash", host: "x.bandcamp.com"),
+            "https://x.bandcamp.com/album/no-leading-slash"
+        )
+        XCTAssertEqual(
+            BandcampParser.absolute("//f4.bcbits.com/thing", host: "x.bandcamp.com"),
+            "https://f4.bcbits.com/thing"
+        )
+    }
+
+    func testAMissingLinkIsNothingRatherThanTheBareHost() {
+        XCTAssertNil(BandcampParser.absolute(nil, host: "x.bandcamp.com"))
+        XCTAssertNil(BandcampParser.absolute("", host: "x.bandcamp.com"))
+    }
+
 }
 
 // MARK: - Fixture (structurally faithful to a real Bandcamp album page)
