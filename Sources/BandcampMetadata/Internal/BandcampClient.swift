@@ -21,7 +21,12 @@ enum BandcampClient {
 
     /// Fetches the HTML for a Bandcamp URL.
     static func fetchHTML(_ urlString: String) async throws -> String {
-        guard let url = URL(string: urlString), url.host?.contains("bandcamp.com") == true || url.host != nil else {
+        // Any host with a host component. Not restricted to bandcamp.com,
+        // because artists can point a custom domain at their Bandcamp page and
+        // those are ordinary, working URLs. (The previous condition read as a
+        // bandcamp.com check but ended in `|| url.host != nil`, which admits
+        // everything — the check was decorative.)
+        guard let url = URL(string: urlString), url.host != nil else {
             throw BandcampMetadataError.invalidURL
         }
 
@@ -49,7 +54,29 @@ enum BandcampClient {
         guard let html = String(data: data, encoding: .utf8) else {
             throw BandcampMetadataError.parsingError("Failed to decode page HTML")
         }
+        try checkInterstitial(html)
         return html
+    }
+
+    /// Pages that answer 200 without being the page that was asked for.
+    ///
+    /// Two of these exist and neither sets a status code that says so, which
+    /// makes them the failures worth naming. A bot challenge is a 3 KB Fastly
+    /// interstitial: transient, and worth retrying later. An unclaimed
+    /// subdomain serves Bandcamp's signup form: permanent, and not an artist.
+    ///
+    /// Without this both arrive as ``BandcampMetadataError/dataNotFound`` —
+    /// "the page had no data" — which is true and tells a caller nothing about
+    /// whether trying again could ever work.
+    static func checkInterstitial(_ html: String) throws {
+        // Matched on the full title element rather than the words, so an album
+        // that happens to be called Signup is not mistaken for one of these.
+        if html.contains("<title>Client Challenge</title>") {
+            throw BandcampMetadataError.requestBlocked
+        }
+        if html.contains("<title>Signup | Bandcamp</title>") {
+            throw BandcampMetadataError.notFound
+        }
     }
 
     /// POSTs a JSON body to a Bandcamp API endpoint and returns the parsed object.

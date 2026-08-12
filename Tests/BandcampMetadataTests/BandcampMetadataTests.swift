@@ -131,6 +131,43 @@ final class BandcampMetadataTests: XCTestCase {
             print("artist: \(artist.name) (\(artist.location ?? "?")) — \(artist.discography.count) releases")
         }
     }
+    // MARK: - Pages that answer 200 without being the page you asked for
+
+    /// Bandcamp fronts a Fastly bot challenge that arrives as a 3 KB body with
+    /// HTTP 200. Status-code handling never sees it, so before this it reached
+    /// the parser and came back as `dataNotFound` — indistinguishable from a
+    /// page that genuinely has no data, and the difference is whether trying
+    /// again could ever work.
+    func testABotChallengeIsReportedAsBlockedNotEmpty() {
+        let challenge = """
+            <!DOCTYPE html><html lang="en"><head>\
+            <title>Client Challenge</title></head><body></body></html>
+            """
+        XCTAssertThrowsError(try BandcampClient.checkInterstitial(challenge)) { error in
+            XCTAssertEqual(error as? BandcampMetadataError, .requestBlocked)
+        }
+    }
+
+    /// An unclaimed subdomain serves Bandcamp's signup form, also at 200.
+    /// That one is permanent: there is no artist there and never was.
+    func testAnUnclaimedSubdomainIsReportedAsNotFound() {
+        let signup = "<html><head><title>Signup | Bandcamp</title></head><body></body></html>"
+        XCTAssertThrowsError(try BandcampClient.checkInterstitial(signup)) { error in
+            XCTAssertEqual(error as? BandcampMetadataError, .notFound)
+        }
+    }
+
+    /// Matched on the whole title element, so a release that happens to be
+    /// called Signup is still a release.
+    func testARealPageIsNotMistakenForAnInterstitial() {
+        XCTAssertNoThrow(try BandcampClient.checkInterstitial(Fixture.albumHTML))
+        XCTAssertNoThrow(
+            try BandcampClient.checkInterstitial("<title>Signup | Some Band</title>")
+        )
+        XCTAssertNoThrow(
+            try BandcampClient.checkInterstitial("<title>Client Challenge EP | Some Band</title>")
+        )
+    }
 }
 
 // MARK: - Fixture (structurally faithful to a real Bandcamp album page)
@@ -162,4 +199,5 @@ private enum Fixture {
           "item_url_root": "https://aphextwin.bandcamp.com", "art_id": 1701615096 }
     ] } }
     """
+
 }
