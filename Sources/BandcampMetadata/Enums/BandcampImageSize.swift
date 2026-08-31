@@ -21,14 +21,4 @@ public enum BandcampImageSize: Int, Sendable {
     case small = 2
     /// 150 × 150 (thumbnail).
     case thumbnail = 7
-
-    /// Builds an album/track **artwork** URL for an `art_id` (uses the `a` prefix).
-    func artworkURL(artID: Int) -> String {
-        "https://f4.bcbits.com/img/a\(artID)_\(rawValue).jpg"
-    }
-
-    /// Builds an **artist/band image** URL for an `image_id`.
-    func imageURL(imageID: Int) -> String {
-        "https://f4.bcbits.com/img/\(imageID)_\(rawValue).jpg"
-    }
 }

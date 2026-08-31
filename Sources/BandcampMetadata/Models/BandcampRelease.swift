@@ -49,13 +49,6 @@ public struct BandcampTrack: Sendable, Identifiable {
     /// The absolute URL of the track's own page, if available.
     public let url: String?
 
-    /// The duration formatted as `"M:SS"`.
-    public var formattedDuration: String {
-        guard let duration else { return "0:00" }
-        let total = Int(duration.rounded())
-        return String(format: "%d:%02d", total / 60, total % 60)
-    }
-
     public init(
         id: Int, trackNumber: Int?, title: String, artist: String?, duration: TimeInterval?,
         streamURL: String?, isStreamable: Bool, isDownloadable: Bool, hasLyrics: Bool,
@@ -185,22 +178,6 @@ public struct BandcampRelease: Sendable, Identifiable {
 
     /// The UPC/barcode, if set.
     public let upc: String?
-
-    // MARK: - Computed
-
-    /// The number of tracks.
-    public var trackCount: Int { tracks.count }
-
-    /// Whether this is a single-track release.
-    public var isSingleTrack: Bool { itemType == "track" }
-
-    /// The total running time of all tracks, in seconds.
-    public var totalDuration: TimeInterval { tracks.reduce(0) { $0 + ($1.duration ?? 0) } }
-
-    /// An artwork URL at the given size (defaults to ``BandcampImageSize/large``).
-    public func artworkURL(size: BandcampImageSize = .large) -> String? {
-        artworkID.map { size.artworkURL(artID: $0) }
-    }
 
     public init(
         id: Int, itemType: String, url: String, title: String, artist: String, artistID: Int?,
